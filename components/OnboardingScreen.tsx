@@ -48,7 +48,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center" key={step}>
         <div className="animate-fade-in">
-          <h1 className="text-white text-5xl font-bold mb-4" style={{ fontFamily: 'var(--font-serif)' }}>{onboardingSlides[step].title}</h1>
+          <h1 className="text-5xl font-bold mb-4" style={{ fontFamily: 'var(--font-serif)' }}>{onboardingSlides[step].title}</h1>
           <p className="text-2xl max-w-md mx-auto">{onboardingSlides[step].subtitle}</p>
         </div>
       </div>
