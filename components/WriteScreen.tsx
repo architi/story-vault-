@@ -383,7 +383,7 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
             errorMessage = 'Speech recognition was aborted.';
             break;
           default:
-            errorMessage = 'Speech recognition error: ${event.error}';
+            errorMessage = `Speech recognition error: ${event.error}`;
         }
         
         setSpeechError(errorMessage);
@@ -446,7 +446,7 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
       const remainingSlots = 3 - photos.length;
       
       if (files.length > remainingSlots) {
-        alert('You can only attach a maximum of 3 photos. You can add ${remainingSlots} more.');
+        alert(`You can only attach a maximum of 3 photos. You can add ${remainingSlots} more.`);
         event.target.value = '';
         return;
       }
