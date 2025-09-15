@@ -8,20 +8,21 @@ interface OnboardingScreenProps {
 
 const onboardingSlides = [
   {
-    title: 'Preserve Your Memories',
-    subtitle: 'Answer weekly questions to capture your life stories.',
-    backgroundStyle: { backgroundColor: '#e0dcd3' } 
+    title: "Preserve Your Memories",
+    subtitle: "Answer weekly questions to capture your life stories.",
+    backgroundStyle: { backgroundUrl: "public/happy_family.jpg" },
   },
   {
-    title: 'Your Stories, Your Way',
-    subtitle: 'Write or speak your stories. Add photos, and customize fonts and themes.',
-    backgroundStyle: { backgroundColor: '#d4cbc0' }
+    title: "Your Stories, Your Way",
+    subtitle:
+      "Write or speak your stories. Add photos, and customize fonts and themes.",
+    backgroundStyle: { backgroundUrl: "public/speech_to_text.jpg" },
   },
   {
-    title: 'A Legacy to Share',
-    subtitle: 'Transform your stories into a keepsake book for loved ones.',
-    backgroundStyle: { backgroundColor: '#c5b8a9' }
-  }
+    title: "A Legacy to Share",
+    subtitle: "Transform your stories into a keepsake book for loved ones.",
+    backgroundStyle: { backgroundUrl: "public/book.jpg" },
+  },
 ];
 
 const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
@@ -36,7 +37,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   };
 
   return (
-    <div className={`theme-${theme} fixed inset-0 flex flex-col justify-between p-8 text-center text-[var(--text-primary)] transition-colors duration-500`} style={onboardingSlides[step].backgroundStyle}>
+    <div className={`theme-${theme} fixed inset-0 flex flex-col justify-between p-8 text-center text-[var(--text-primary)] transition-colors duration-500`} style={{ backgroundImage: `url(${onboardingSlides[step].backgroundStyle.backgroundUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' , opacity: 0.5}}>
       {/* Skip Button */}
       <div className="relative z-10 w-full flex justify-end">
         <button onClick={onComplete} className="font-bold text-lg opacity-80 hover:opacity-100">
@@ -47,8 +48,8 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center" key={step}>
         <div className="animate-fade-in">
-          <h1 className="text-5xl font-bold mb-4" style={{ fontFamily: 'var(--font-serif)' }}>{onboardingSlides[step].title}</h1>
-          <p className="text-2xl opacity-90 max-w-md mx-auto">{onboardingSlides[step].subtitle}</p>
+          <h1 className="text-white text-5xl font-bold mb-4" style={{ fontFamily: 'var(--font-serif)' }}>{onboardingSlides[step].title}</h1>
+          <p className="text-2xl max-w-md mx-auto">{onboardingSlides[step].subtitle}</p>
         </div>
       </div>
 
