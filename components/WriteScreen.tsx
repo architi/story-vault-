@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { Story } from '../types';
 import { useAppContext } from '../hooks/useAppContext';
@@ -11,8 +10,7 @@ interface WriteScreenProps {
   onSave: () => void;
 }
 
-// Fix: Add missing Web Speech API type definitions to resolve compilation errors.
-// These types are not included in default TypeScript DOM libraries.
+// Enhanced Web Speech API type definitions
 interface SpeechRecognitionAlternative {
   readonly transcript: string;
   readonly confidence: number;
@@ -28,7 +26,6 @@ interface SpeechRecognitionResult {
 interface SpeechRecognitionResultList {
   readonly length: number;
   item(index: number): SpeechRecognitionResult;
-  // FIX: The index signature should return SpeechRecognitionResult, not SpeechRecognitionAlternative.
   [index: number]: SpeechRecognitionResult;
 }
 
@@ -39,25 +36,36 @@ interface SpeechRecognitionEvent extends Event {
 
 interface SpeechRecognitionErrorEvent extends Event {
   readonly error: string;
+  readonly message?: string;
 }
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
+  maxAlternatives: number;
+  serviceURI: string;
+  grammars: any;
   start(): void;
   stop(): void;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: SpeechRecognitionErrorEvent) => void;
-  onstart: () => void;
-  onend: () => void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onspeechstart: (() => void) | null;
+  onspeechend: (() => void) | null;
+  onsoundstart: (() => void) | null;
+  onsoundend: (() => void) | null;
+  onaudiostart: (() => void) | null;
+  onaudioend: (() => void) | null;
+  onnomatch: ((event: SpeechRecognitionEvent) => void) | null;
 }
 
 interface SpeechRecognitionStatic {
   new (): SpeechRecognition;
 }
 
-// Add types for the Web Speech API to the global window object
 declare global {
   interface Window {
     SpeechRecognition: SpeechRecognitionStatic;
@@ -78,58 +86,66 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [speechError, setSpeechError] = useState<string>('');
+  const [isListening, setIsListening] = useState(false);
+  
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
-
+  const restartTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // Check for browser support on component mount
-    const hasSupport = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
-    setIsSpeechSupported(hasSupport);
+    // Enhanced browser support detection
+    const checkSpeechSupport = () => {
+      const hasSupport = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+      console.log('Speech recognition support:', hasSupport);
+      
+      // Additional checks for HTTPS and permissions
+      if (hasSupport && location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        console.warn('Speech recognition requires HTTPS or localhost');
+        setIsSpeechSupported(false);
+        return;
+      }
+      
+      setIsSpeechSupported(hasSupport);
+    };
+
+    checkSpeechSupport();
   }, []);
   
   // Typewriter effect for the question
   useEffect(() => {
     if (!question) return;
 
-    // Reset displayed question when the source question changes.
     setDisplayedQuestion('');
 
     let i = 0;
     const intervalId = setInterval(() => {
-      // Use the counter `i` to get a slice of the full question.
-      // This is a robust way to build the string and avoids state-related race conditions.
       setDisplayedQuestion(question.slice(0, i));
       i++;
 
-      // When the counter exceeds the length of the string, stop the animation.
       if (i > question.length + 1) {
         clearInterval(intervalId);
       }
-    }, 50); // Typing speed in milliseconds.
+    }, 50);
 
-    // Cleanup: clear the interval when the component unmounts or the `question` dependency changes.
     return () => clearInterval(intervalId);
   }, [question]);
 
-
   useEffect(() => {
-    // If the story prop changes, update the form
     if (story) {
       setQuestion(story.question);
       setContent(story.content);
       setPhotos(story.photos);
     } else {
-      // For new story, reset form
       setQuestion(currentQuestion);
       setContent('');
       setPhotos([]);
     }
   }, [story, currentQuestion]);
 
-  // Load draft from localStorage on initial load for new stories
+  // Load draft from localStorage
   useEffect(() => {
-    if (!story) { // Only for new stories
+    if (!story) {
       const savedDraft = localStorage.getItem('storyvault_draft');
       if (savedDraft) {
         try {
@@ -139,7 +155,6 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
               setContent(draft.content);
               setPhotos(draft.photos);
             } else {
-              // User chose not to restore, so clear the draft.
               localStorage.removeItem('storyvault_draft');
             }
           }
@@ -151,7 +166,7 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
     }
   }, [story, currentQuestion]);
 
-  // Auto-save draft to localStorage
+  // Auto-save draft
   useEffect(() => {
     const isDraftable = !story && (content.trim() !== '' || photos.length > 0);
 
@@ -167,8 +182,8 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
         localStorage.setItem('storyvault_draft', JSON.stringify(draft));
         setSaveStatus('saved');
 
-        setTimeout(() => setSaveStatus('idle'), 2000); // Reset indicator
-      }, 2500); // 2.5 second debounce time
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      }, 2500);
     }
 
     return () => {
@@ -178,13 +193,208 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
     };
   }, [content, photos, question, story]);
 
-
   useEffect(() => {
-    // Cleanup on unmount: stop recording if active
     return () => {
-      recognitionRef.current?.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+      }
     };
   }, []);
+
+  const stopRecognition = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    if (restartTimeoutRef.current) {
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = null;
+    }
+    setIsRecording(false);
+    setIsListening(false);
+    setSpeechError('');
+  };
+
+  const startRecognition = () => {
+    if (!isSpeechSupported) {
+      alert("Voice-to-text is not supported by your browser. Please use Chrome, Edge, or Safari on HTTPS.");
+      return;
+    }
+
+    // Request microphone permission first
+    navigator.mediaDevices?.getUserMedia({ audio: true })
+      .then(() => {
+        console.log('Microphone permission granted');
+        initializeSpeechRecognition();
+      })
+      .catch((err) => {
+        console.error('Microphone permission denied:', err);
+        setSpeechError('Microphone access denied. Please allow microphone access and try again.');
+      });
+  };
+
+  const initializeSpeechRecognition = () => {
+    try {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+
+      // Enhanced configuration
+      recognition.continuous = true;
+      recognition.interimResults = true; // Enable interim results for better UX
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        console.log('Speech recognition started');
+        setIsRecording(true);
+        setIsListening(false);
+        setSpeechError('');
+      };
+
+      recognition.onspeechstart = () => {
+        console.log('Speech detected');
+        setIsListening(true);
+      };
+
+      recognition.onspeechend = () => {
+        console.log('Speech ended');
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        console.log('Speech recognition ended');
+        setIsRecording(false);
+        setIsListening(false);
+        
+        // Auto-restart if we're still supposed to be recording
+        // This handles the automatic stopping that occurs in some browsers
+        if (recognitionRef.current && isRecording) {
+          console.log('Restarting speech recognition...');
+          restartTimeoutRef.current = window.setTimeout(() => {
+            if (recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (error) {
+                console.error('Failed to restart recognition:', error);
+                stopRecognition();
+              }
+            }
+          }, 100);
+        } else {
+          recognitionRef.current = null;
+        }
+      };
+      
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error('Speech recognition error:', event.error, event.message);
+        
+        let errorMessage = '';
+        switch (event.error) {
+          case 'no-speech':
+            errorMessage = 'No speech detected. Please try speaking again.';
+            // Auto-restart for no-speech errors
+            if (isRecording) {
+              restartTimeoutRef.current = window.setTimeout(() => {
+                if (recognitionRef.current) {
+                  try {
+                    recognitionRef.current.start();
+                  } catch (error) {
+                    console.error('Failed to restart after no-speech:', error);
+                    stopRecognition();
+                  }
+                }
+              }, 1000);
+              return; // Don't show error or stop for no-speech
+            }
+            break;
+          case 'audio-capture':
+            errorMessage = 'Microphone not accessible. Please check your microphone settings.';
+            break;
+          case 'not-allowed':
+            errorMessage = 'Microphone access denied. Please allow microphone access and try again.';
+            break;
+          case 'network':
+            errorMessage = 'Network error. Please check your internet connection.';
+            break;
+          case 'aborted':
+            errorMessage = 'Speech recognition was aborted.';
+            break;
+          default:
+            errorMessage = `Speech recognition error: ${event.error}`;
+        }
+        
+        setSpeechError(errorMessage);
+        stopRecognition();
+      };
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        // Only process final results to avoid duplicates
+        if (finalTranscript) {
+          console.log('Final transcript:', finalTranscript);
+          
+          setContent(prevContent => {
+            const trimmedPrev = prevContent.trim();
+            let newText = finalTranscript.trim();
+
+            if (!newText) return prevContent;
+
+            // Capitalize if it's the start of a new sentence
+            if (trimmedPrev === '' || /[.?!]\s*$/.test(trimmedPrev)) {
+              newText = newText.charAt(0).toUpperCase() + newText.slice(1);
+            }
+
+            // Add appropriate spacing
+            let separator = '';
+            if (trimmedPrev && !/\s$/.test(prevContent)) {
+              separator = ' ';
+            }
+
+            // Add period if the text doesn't end with punctuation
+            if (!/[.?!]$/.test(newText)) {
+              newText += '.';
+            }
+
+            const updatedContent = `${prevContent}${separator}${newText} `;
+            return updatedContent.replace(/\s+/g, ' ');
+          });
+        }
+      };
+      
+      recognition.start();
+      console.log('Starting speech recognition...');
+      
+    } catch (error) {
+      console.error('Error initializing speech recognition:', error);
+      setSpeechError('Failed to initialize speech recognition. Please try again.');
+      stopRecognition();
+    }
+  };
+
+  const handleToggleRecording = () => {
+    if (isRecording) {
+      stopRecognition();
+    } else {
+      startRecognition();
+    }
+  };
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -193,7 +403,6 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
       
       if (files.length > remainingSlots) {
         alert(`You can only attach a maximum of 3 photos. You can add ${remainingSlots} more.`);
-        // Reset the file input value to allow re-selection of files
         event.target.value = '';
         return;
       }
@@ -207,7 +416,6 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
         };
         reader.readAsDataURL(file);
       });
-      // Reset the file input value to allow re-selection of the same file if needed
       event.target.value = '';
     }
   };
@@ -218,88 +426,50 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
 
   const handleInspireMe = async () => {
     setIsInspiring(true);
-    const starter = await generateStoryStarter(question);
-    setContent(prev => `${prev}${prev ? '\n\n' : ''}${starter}`);
-    setIsInspiring(false);
-  };
-
-  const handleToggleRecording = () => {
-    if (!isSpeechSupported) {
-      alert("Voice-to-text is not supported by your browser.");
-      return;
-    }
-
-    if (isRecording) {
-      recognitionRef.current?.stop();
-    } else {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-
-      recognition.lang = 'en-US';
-      recognition.continuous = true;
-      recognition.interimResults = false; // Only process final results for simplicity
-
-      recognition.onstart = () => {
-        setIsRecording(true);
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-        recognitionRef.current = null;
-      };
-      
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-        recognitionRef.current = null;
-      };
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          }
-        }
-
-        if (finalTranscript) {
-          setContent(prevContent => {
-            const trimmedPrev = prevContent.trim();
-            let newText = finalTranscript.trim();
-
-            // Capitalize if it's the start of a new sentence.
-            if (trimmedPrev === '' || /[.?!]\s*$/.test(trimmedPrev)) {
-              newText = newText.charAt(0).toUpperCase() + newText.slice(1);
-            }
-
-            // Add a space if needed before the new text
-            const prefix = (trimmedPrev && !/\s$/.test(trimmedPrev)) ? ' ' : '';
-            
-            // Add the new text with a period and a space at the end.
-            const updatedContent = `${prevContent}${prefix}${newText}. `;
-            return updatedContent.replace(/\s\s+/g, ' ');
-          });
-        }
-      };
-      
-      recognition.start();
+    try {
+      const starter = await generateStoryStarter(question);
+      setContent(prev => `${prev}${prev ? '\n\n' : ''}${starter}`);
+    } catch (error) {
+      console.error('Error generating story starter:', error);
+      alert('Failed to generate inspiration. Please try again.');
+    } finally {
+      setIsInspiring(false);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Stop recording before saving
+    if (isRecording) {
+      stopRecognition();
+    }
+    
     if (story) {
       updateStory({ ...story, question, content, photos });
     } else {
       addStory({ question, content, photos });
     }
-    // Clear the draft upon successful submission
+    
     localStorage.removeItem('storyvault_draft');
     onSave();
   };
 
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+
+  // Enhanced recording button status
+  const getRecordingButtonText = () => {
+    if (!isSpeechSupported) return 'Speech Not Supported';
+    if (isRecording && isListening) return 'Listening...';
+    if (isRecording) return 'Ready to Listen';
+    return 'Record Voice';
+  };
+
+  const getRecordingButtonVariant = () => {
+    if (!isSpeechSupported) return 'secondary';
+    if (isRecording) return 'danger';
+    return 'secondary';
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -321,10 +491,23 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
           required
         />
         <div className="flex justify-between items-center mt-1">
-          <p className="text-sm text-[var(--text-secondary)] italic h-5">
-            {saveStatus === 'saving' && 'Saving draft...'}
-            {saveStatus === 'saved' && 'Draft saved.'}
-          </p>
+          <div className="flex items-center space-x-4">
+            <p className="text-sm text-[var(--text-secondary)] italic h-5">
+              {saveStatus === 'saving' && 'Saving draft...'}
+              {saveStatus === 'saved' && 'Draft saved.'}
+            </p>
+            {speechError && (
+              <p className="text-sm text-red-600 italic">
+                {speechError}
+              </p>
+            )}
+            {isRecording && (
+              <p className="text-sm text-green-600 italic flex items-center">
+                <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                {isListening ? 'Listening...' : 'Microphone active'}
+              </p>
+            )}
+          </div>
           <p className="text-right text-sm text-[var(--text-secondary)]">{wordCount} words</p>
         </div>
       </div>
@@ -354,22 +537,36 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
         <Button type="submit" className="flex-1 text-lg">
           {story ? 'Update Story' : 'Save Story'}
         </Button>
-        <Button type="button" onClick={handleInspireMe} variant="secondary" className="flex-1" disabled={isInspiring || isRecording}>
+        <Button 
+          type="button" 
+          onClick={handleInspireMe} 
+          variant="secondary" 
+          className="flex-1" 
+          disabled={isInspiring || isRecording}
+        >
           <Icon name="sparkles" className="w-5 h-5" />
           {isInspiring ? 'Thinking...' : 'Inspire Me'}
         </Button>
         <Button
           type="button"
           onClick={handleToggleRecording}
-          variant={isRecording ? 'danger' : 'secondary'}
+          variant={getRecordingButtonVariant()}
           className="flex-1"
           disabled={!isSpeechSupported}
-          title={!isSpeechSupported ? "Speech recognition not supported in this browser" : ""}
+          title={!isSpeechSupported ? "Speech recognition requires Chrome, Edge, or Safari on HTTPS" : ""}
         >
           <Icon name="mic" className="w-5 h-5" />
-          {isRecording ? 'Stop Recording' : 'Record Voice'}
+          {getRecordingButtonText()}
         </Button>
       </div>
+
+      {!isSpeechSupported && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800">
+            <strong>Speech-to-text not supported:</strong> Please use Chrome, Edge, or Safari on a secure connection (HTTPS) to use voice recording.
+          </p>
+        </div>
+      )}
     </form>
   );
 };
