@@ -89,9 +89,14 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
   const [speechError, setSpeechError] = useState<string>('');
   const [isListening, setIsListening] = useState(false);
   
+  // New state for live transcription
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [finalTranscriptBuffer, setFinalTranscriptBuffer] = useState('');
+  
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
   const restartTimeoutRef = useRef<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     // Enhanced browser support detection
@@ -193,6 +198,14 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
     };
   }, [content, photos, question, story]);
 
+  // Auto-scroll textarea when live transcription is active
+  useEffect(() => {
+    if (isRecording && textareaRef.current) {
+      const textarea = textareaRef.current;
+      textarea.scrollTop = textarea.scrollHeight;
+    }
+  }, [content, interimTranscript, isRecording]);
+
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -217,6 +230,13 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
     setIsRecording(false);
     setIsListening(false);
     setSpeechError('');
+    
+    // Clear interim transcript and apply any pending final transcript
+    setInterimTranscript('');
+    if (finalTranscriptBuffer) {
+      applyFinalTranscript(finalTranscriptBuffer);
+      setFinalTranscriptBuffer('');
+    }
   };
 
   const startRecognition = () => {
@@ -237,15 +257,44 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
       });
   };
 
+  const applyFinalTranscript = (transcript: string) => {
+    const trimmedTranscript = transcript.trim();
+    if (!trimmedTranscript) return;
+
+    setContent(prevContent => {
+      const trimmedPrev = prevContent.trim();
+      let newText = trimmedTranscript;
+
+      // Capitalize if it's the start of a new sentence
+      if (trimmedPrev === '' || /[.?!]\s*$/.test(trimmedPrev)) {
+        newText = newText.charAt(0).toUpperCase() + newText.slice(1);
+      }
+
+      // Add appropriate spacing
+      let separator = '';
+      if (trimmedPrev && !/\s$/.test(prevContent)) {
+        separator = ' ';
+      }
+
+      // Add period if the text doesn't end with punctuation
+      if (!/[.?!]$/.test(newText)) {
+        newText += '.';
+      }
+
+      const updatedContent = `${prevContent}${separator}${newText} `;
+      return updatedContent.replace(/\s+/g, ' ');
+    });
+  };
+
   const initializeSpeechRecognition = () => {
     try {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
 
-      // Enhanced configuration
+      // Enhanced configuration for live transcription
       recognition.continuous = true;
-      recognition.interimResults = true; // Enable interim results for better UX
+      recognition.interimResults = true; // This enables live transcription
       recognition.lang = 'en-US';
       recognition.maxAlternatives = 1;
 
@@ -254,6 +303,8 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
         setIsRecording(true);
         setIsListening(false);
         setSpeechError('');
+        setInterimTranscript('');
+        setFinalTranscriptBuffer('');
       };
 
       recognition.onspeechstart = () => {
@@ -268,11 +319,18 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
 
       recognition.onend = () => {
         console.log('Speech recognition ended');
+        
+        // Apply any remaining final transcript before stopping
+        if (finalTranscriptBuffer) {
+          applyFinalTranscript(finalTranscriptBuffer);
+          setFinalTranscriptBuffer('');
+        }
+        
         setIsRecording(false);
         setIsListening(false);
+        setInterimTranscript('');
         
         // Auto-restart if we're still supposed to be recording
-        // This handles the automatic stopping that occurs in some browsers
         if (recognitionRef.current && isRecording) {
           console.log('Restarting speech recognition...');
           restartTimeoutRef.current = window.setTimeout(() => {
@@ -346,35 +404,21 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
           }
         }
 
-        // Only process final results to avoid duplicates
+        // Update interim transcript for live display
+        setInterimTranscript(interimTranscript);
+
+        // Process final results
         if (finalTranscript) {
           console.log('Final transcript:', finalTranscript);
           
-          setContent(prevContent => {
-            const trimmedPrev = prevContent.trim();
-            let newText = finalTranscript.trim();
-
-            if (!newText) return prevContent;
-
-            // Capitalize if it's the start of a new sentence
-            if (trimmedPrev === '' || /[.?!]\s*$/.test(trimmedPrev)) {
-              newText = newText.charAt(0).toUpperCase() + newText.slice(1);
-            }
-
-            // Add appropriate spacing
-            let separator = '';
-            if (trimmedPrev && !/\s$/.test(prevContent)) {
-              separator = ' ';
-            }
-
-            // Add period if the text doesn't end with punctuation
-            if (!/[.?!]$/.test(newText)) {
-              newText += '.';
-            }
-
-            const updatedContent = `${prevContent}${separator}${newText} `;
-            return updatedContent.replace(/\s+/g, ' ');
-          });
+          // Store final transcript to be applied
+          setFinalTranscriptBuffer(prev => prev + finalTranscript);
+          
+          // Apply final transcript immediately
+          applyFinalTranscript(finalTranscript);
+          
+          // Clear interim transcript since we have final results
+          setInterimTranscript('');
         }
       };
       
@@ -471,6 +515,16 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
     return 'secondary';
   };
 
+  // Get the display value for the textarea (content + interim transcript)
+  const getTextareaDisplayValue = () => {
+    if (isRecording && interimTranscript) {
+      const trimmedContent = content.trim();
+      const separator = trimmedContent && !/\s$/.test(content) ? ' ' : '';
+      return `${content}${separator}${interimTranscript}`;
+    }
+    return content;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <header className="border-b-2 border-[var(--border-color)] pb-4">
@@ -482,14 +536,30 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
       </header>
 
       <div>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Your story begins here..."
-          className="w-full h-96 p-4 bg-[var(--background-secondary)] border-2 border-[var(--border-color)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:outline-none transition-shadow"
-          style={{ fontFamily: 'var(--font-serif)'}}
-          required
-        />
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={getTextareaDisplayValue()}
+            onChange={(e) => {
+              // Only allow manual editing when not recording
+              if (!isRecording) {
+                setContent(e.target.value);
+              }
+            }}
+            placeholder="Your story begins here..."
+            className={`w-full h-96 p-4 bg-[var(--background-secondary)] border-2 border-[var(--border-color)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:outline-none transition-shadow ${
+              isRecording ? 'cursor-not-allowed' : ''
+            }`}
+            style={{ fontFamily: 'var(--font-serif)'}}
+            required
+            readOnly={isRecording}
+          />
+          {isRecording && interimTranscript && (
+            <div className="absolute bottom-4 right-4 bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+              Live transcription active
+            </div>
+          )}
+        </div>
         <div className="flex justify-between items-center mt-1">
           <div className="flex items-center space-x-4">
             <p className="text-sm text-[var(--text-secondary)] italic h-5">
@@ -505,6 +575,7 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
               <p className="text-sm text-green-600 italic flex items-center">
                 <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                 {isListening ? 'Listening...' : 'Microphone active'}
+                {interimTranscript && ' • Live transcription'}
               </p>
             )}
           </div>
