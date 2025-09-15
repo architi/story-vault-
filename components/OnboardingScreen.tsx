@@ -16,12 +16,12 @@ const onboardingSlides = [
     title: "Your Stories, Your Way",
     subtitle:
       "Write or speak your stories. Add photos, and customize fonts and themes.",
-    backgroundStyle: { backgroundUrl: "public/speech_to_text.jpg" },
+    backgroundStyle: { backgroundUrl: "speech_to_text.jpg" },
   },
   {
     title: "A Legacy to Share",
     subtitle: "Transform your stories into a keepsake book for loved ones.",
-    backgroundStyle: { backgroundUrl: "public/book.jpg" },
+    backgroundStyle: { backgroundUrl: "book.jpg" },
   },
 ];
 
