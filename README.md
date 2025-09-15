@@ -1,20 +1,42 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# StoryVault
 
-# Run and deploy your AI Studio app
+A story-preservation web application designed for accessibility and simplicity. Users receive weekly prompts to write stories, which they can save, illustrate with photos, and export as a beautifully formatted PDF.
+It allows users to write stories, attach photos, and save them in a personal vault.  
+This prototype demonstrates the design and functionality of the app.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/drive/1p3ZZafvKEclUIjGd9C9qDVjB-8B5gGQ5
+## Project Setup
 
-## Run Locally
+### Requirements
 
-**Prerequisites:**  Node.js
+- Node.js (v16 or higher recommended)
+- npm (comes with Node.js)
 
+### Installation
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. Download the ZIP file of this project.
+2. Extract the contents into a folder on your system.
+3. Open a terminal / PowerShell in the project folder.
+4. Run the following commands:
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Start the development server
+
+```bash
+npm run dev
+```
+
+### Snapshots
+![image 1](public/home.jpg) 
+
+![image 2](public/vault.jpg) 
+
+![image 3](public/chat.jpg) 
+
+![image 4](public/settings.jpg) 
