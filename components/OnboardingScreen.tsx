@@ -10,7 +10,7 @@ const onboardingSlides = [
   {
     title: "Preserve Your Memories",
     subtitle: "Answer weekly questions to capture your life stories.",
-    backgroundStyle: { backgroundUrl: "public/happy_family.jpg" },
+    backgroundStyle: { backgroundUrl: "happy_family.jpg" },
   },
   {
     title: "Your Stories, Your Way",
