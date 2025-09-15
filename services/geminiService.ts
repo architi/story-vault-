@@ -3,8 +3,8 @@ import { GoogleGenAI } from "@google/genai";
 
 // Ensure API_KEY is available in the environment.
 // Do not modify this line. The API_KEY is provided externally.
-const API_KEY = process.env.API_KEY;
-
+const API_KEY = import.meta.env.VITE_API_KEY || "";
+console.log(API_KEY);
 if (!API_KEY) {
   console.warn("Gemini API key not found. 'Inspire Me' feature will be disabled.");
 }
