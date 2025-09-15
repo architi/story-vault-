@@ -75,7 +75,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
           >
             {/* Title with Enhanced Typography */}
             <h1 
-              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight text-white drop-shadow-lg"
+              className=" text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight text-white drop-shadow-lg"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               <span className="bg-gradient-to-r from-red-400 via-red-500 to-red-600 bg-clip-text text-transparent">
@@ -84,7 +84,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
             </h1>
             
             {/* Subtitle with Better Spacing */}
-            <p className="text-lg md:text-xl lg:text-2xl max-w-lg mx-auto leading-relaxed text-white/90 drop-shadow-md font-light">
+            <p className="text-black text-lg md:text-xl lg:text-2xl max-w-lg mx-auto leading-relaxed drop-shadow-md font-light">
               {onboardingSlides[step].subtitle}
             </p>
           </div>
