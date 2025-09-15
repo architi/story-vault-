@@ -198,7 +198,7 @@ const WriteScreen: React.FC<WriteScreenProps> = ({ story, onSave }) => {
         return;
       }
 
-      files.forEach(file => {
+      files.forEach((file: File) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           if (e.target?.result && photos.length < 3) {
