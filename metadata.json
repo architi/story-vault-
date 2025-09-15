@@ -1,0 +1,7 @@
+{
+  "name": "Copy of StoryVault",
+  "description": "A story-preservation web application designed for accessibility and simplicity. Users receive weekly prompts to write stories, which they can save, illustrate with photos, and export as a beautifully formatted PDF.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
