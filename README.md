@@ -7,7 +7,6 @@ This prototype demonstrates the design and functionality of the app.
 ---
 
 ## Project Setup
-
 ### Requirements
 
 - Node.js (v16 or higher recommended)
